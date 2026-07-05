@@ -8,6 +8,6 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     python_requires=">=3.10",
-    install_requires=["numpy", "pandas", "scikit-learn", "scipy"],
+    install_requires=["numpy", "pandas", "scikit-learn", "scipy", "matplotlib"],
     entry_points={"console_scripts": ["oadr-cpep-cli=oadr_cpep_cli.cli:main"]},
 )

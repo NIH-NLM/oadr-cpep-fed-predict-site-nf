@@ -1,13 +1,13 @@
 # File: container/oadr-cpep/Dockerfile
-# Self-contained image for the oadr-cpep-cli used by BOTH the site and the
-# aggregator workflows. Build once, publish to a registry, reference from each
-# workflow's nextflow.config.
+# Self-contained image for the per-site oadr-cpep-cli (select-features,
+# fit-models). Build once, publish to a registry, reference from the site
+# workflow's nextflow.config. The aggregator step has its own image.
 
 FROM mambaorg/micromamba:1.5.6
 
 LABEL maintainer="nih-nlm"
 LABEL org.opencontainers.image.title="oadr-cpep-cli"
-LABEL org.opencontainers.image.description="Federated prediction of residual beta-cell function"
+LABEL org.opencontainers.image.description="Per-site federated prediction of residual beta-cell function"
 
 USER root:root
 RUN apt-get update && \
