@@ -30,16 +30,16 @@ process APPLY_COEFFICIENTS {
     script:
     def method = params.federated_method ? "--method ${params.federated_method}" : ""
     """
-    oadr-cpep-cli apply-coefficients \\
-        --data ${data} \\
-        --coefficients ${coefficients} \\
-        --site ${site} \\
-        --target ${params.target} \\
-        ${method} \\
-        --ridge-alpha ${params.ridge_alpha} \\
-        --lasso-alpha ${params.lasso_alpha} \\
-        --n-boot ${params.n_boot} \\
-        --seed ${params.seed} \\
+    oadr-cpep-cli apply-coefficients \
+        --data ${data} \
+        --coefficients ${coefficients} \
+        --site ${site} \
+        --target ${params.target} \
+        ${method} \
+        --ridge-alpha ${params.ridge_alpha} \
+        --lasso-alpha ${params.lasso_alpha} \
+        --n-boot ${params.n_boot} \
+        --seed ${params.seed} \
         --outdir .
     """
 }
