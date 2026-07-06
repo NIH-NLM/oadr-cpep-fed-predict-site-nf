@@ -7,16 +7,19 @@
                       vector: solo-vs-federated 5-fold CV, bootstrap 95% CI, and
                       an observed-vs-predicted scatter, from this site's view.
 
-Only model parameters (feature lists, coefficient vectors, trained forests) and
+Data is read through the embedded oadr_data loader (the same one the
+oadr-autoantibody notebooks use): each phase takes --site (the study, e.g.
+SDY524), --panel (A|B), and --data-root (the ImmPort-derived data/ tree). Only
+model parameters (feature lists, coefficient vectors, trained forests) and
 scalar performance summaries leave the site — never subject-level data. The
-aggregator-side commands (consensus-features, aggregate-vectors) live in the
-aggregator workflow repo.
+aggregator-side commands live in the aggregator workflow repo.
 """
 from __future__ import annotations
 
 import argparse
 import os
 import pickle
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -25,18 +28,24 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import MinMaxScaler
 
-NON_FEATURES = {"subject_id", "Subject_ID", "study", "Study"}
+try:                                   # installed as a package (container)
+    from . import oadr_data as od
+except ImportError:                    # run as a script (local dev)
+    import oadr_data as od
+
+
+def _load(args):
+    """Load this study+panel through oadr_data, rooted at --data-root."""
+    od._DATA = Path(args.data_root)
+    return od.load_features(args.site, args.panel)   # (frame, feature_names, target)
 
 
 # ------------------------------------------------------------------ site: select
 def select_features(args):
     """Phase 1 (site): LASSO selects features on this site's own data."""
-    df = pd.read_csv(args.data)
-    if args.target not in df.columns:
-        raise SystemExit(f"target column {args.target!r} not in {args.data}")
-    feats = [c for c in df.columns if c not in NON_FEATURES and c != args.target]
-    X = df[feats].astype(float).values
-    y = df[args.target].astype(float).values
+    frame, feats, target = _load(args)
+    X = frame[feats].astype(float).values
+    y = frame[target].astype(float).values
 
     sc = MinMaxScaler().fit(X)                     # scale within this site only
     cv = max(2, min(5, len(y) // 4))
@@ -45,21 +54,23 @@ def select_features(args):
     out = pd.DataFrame({"feature": feats, "coefficient": m.coef_,
                         "selected": (np.abs(m.coef_) > 1e-8).astype(int)})
     out["site"] = args.site
+    out["panel"] = args.panel.upper()
     out["n_subjects"] = len(y)
     out["alpha"] = float(m.alpha_)
     path = args.out or f"{args.site}_selected_features.csv"
     out.to_csv(path, index=False)
     kept = [f for f, c in zip(feats, m.coef_) if abs(c) > 1e-8]
-    print(f"{args.site}: N={len(y)}, selected {len(kept)}/{len(feats)} at alpha={m.alpha_:.4f}: {kept}")
+    print(f"{args.site} panel {args.panel.upper()}: N={len(y)}, "
+          f"selected {len(kept)}/{len(feats)} at alpha={m.alpha_:.4f}: {kept}")
 
 
 # ------------------------------------------------------------------ site: fit
 def fit_models(args):
     """Phase 2 (site): fit Ridge/LASSO/RF on the consensus features."""
+    frame, _all, target = _load(args)
     feats = list(pd.read_csv(args.features)["feature"])
-    df = pd.read_csv(args.data)
-    y = df[args.target].astype(float).values
-    X = df.reindex(columns=feats).fillna(0.0).astype(float).values
+    y = frame[target].astype(float).values
+    X = frame.reindex(columns=feats).fillna(0.0).astype(float).values
     sc = MinMaxScaler().fit(X)
     Xs = sc.transform(X)
     os.makedirs(args.outdir, exist_ok=True)
@@ -118,6 +129,7 @@ def apply_coefficients(args):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    frame, _all, target = _load(args)
     vec = pd.read_csv(args.coefficients)
     method = (args.method or (vec["method"].iloc[0] if "method" in vec.columns else "ridge")).lower()
     cd = dict(zip(vec["feature"], vec["coefficient"]))
@@ -125,11 +137,8 @@ def apply_coefficients(args):
     feats = [f for f in vec["feature"] if f != "__intercept__"]
     c_coef = np.array([float(cd[f]) for f in feats])
 
-    df = pd.read_csv(args.data)
-    if args.target not in df.columns:
-        raise SystemExit(f"target column {args.target!r} not in {args.data}")
-    y = df[args.target].astype(float).values
-    X = df.reindex(columns=feats).fillna(0.0).astype(float).values
+    y = frame[target].astype(float).values
+    X = frame.reindex(columns=feats).fillna(0.0).astype(float).values
     n = len(y)
 
     def model_fn():
@@ -183,27 +192,34 @@ def apply_coefficients(args):
           f"({'improves' if r2_f > r2_s else 'no gain'})")
 
 
+def _add_data_args(a):
+    """Shared inputs: --site (study), --panel A|B, --data-root (ImmPort tree)."""
+    a.add_argument("--site", required=True, help="study / institution id, e.g. SDY524")
+    a.add_argument("--panel", default="B", help="feature panel: A (legacy 9) or B (extended 12)")
+    a.add_argument("--data-root", default="data", help="path to the oadr-autoantibody data/ tree")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="oadr-cpep-cli",
                                 description="Federated prediction of residual beta-cell function (site steps)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     a = sub.add_parser("select-features", help="Phase 1 (site) LASSO feature selection")
-    a.add_argument("--data", required=True); a.add_argument("--site", required=True)
-    a.add_argument("--target", default="log_auc"); a.add_argument("--out", default=None)
-    a.add_argument("--seed", type=int, default=42); a.set_defaults(func=select_features)
+    _add_data_args(a)
+    a.add_argument("--out", default=None); a.add_argument("--seed", type=int, default=42)
+    a.set_defaults(func=select_features)
 
     a = sub.add_parser("fit-models", help="Phase 2 (site) fit Ridge/LASSO/RF on consensus features")
-    a.add_argument("--data", required=True); a.add_argument("--features", required=True)
-    a.add_argument("--site", required=True); a.add_argument("--target", default="log_auc")
+    _add_data_args(a)
+    a.add_argument("--features", required=True)
     a.add_argument("--outdir", default="."); a.add_argument("--ridge-alpha", type=float, default=1.0)
     a.add_argument("--lasso-alpha", type=float, default=0.008); a.add_argument("--n-trees", type=int, default=200)
     a.add_argument("--seed", type=int, default=42); a.set_defaults(func=fit_models)
 
     a = sub.add_parser("apply-coefficients",
                        help="Phase 3 (site) incorporate the central federated coefficients (solo vs federated)")
-    a.add_argument("--data", required=True); a.add_argument("--coefficients", required=True)
-    a.add_argument("--site", required=True); a.add_argument("--target", default="log_auc")
+    _add_data_args(a)
+    a.add_argument("--coefficients", required=True)
     a.add_argument("--method", default=None, help="ridge|lasso (default: read from the vector)")
     a.add_argument("--ridge-alpha", type=float, default=1.0)
     a.add_argument("--lasso-alpha", type=float, default=0.008)

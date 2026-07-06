@@ -14,7 +14,7 @@ The artifact you pass selects the phase:
 
 **Phase 1 — feature selection** (no artifact):
 ```bash
-nextflow run main.nf --data SDY524_data.csv --site SDY524
+nextflow run main.nf --site SDY524 --panel B --data_root /path/to/data
 ```
 Runs LASSO on the site's data and emits `SDY524_selected_features.csv`. The
 aggregator collects every site's selection and broadcasts back a
@@ -22,7 +22,7 @@ aggregator collects every site's selection and broadcasts back a
 
 **Phase 2 — fit on consensus features** (`--consensus_features`):
 ```bash
-nextflow run main.nf --data SDY524_data.csv --site SDY524 \
+nextflow run main.nf --site SDY524 --panel B --data_root /path/to/data \
     --consensus_features consensus_features.csv
 ```
 Fits Ridge, LASSO, and Random Forest on the consensus features — LASSO
@@ -31,7 +31,7 @@ selection is not repeated — and emits `SDY524_ridge_vector.csv`,
 
 **Phase 3 — incorporate the federated coefficients** (`--federated_coefficients`):
 ```bash
-nextflow run main.nf --data SDY524_data.csv --site SDY524 \
+nextflow run main.nf --site SDY524 --panel B --data_root /path/to/data \
     --federated_coefficients federated_ridge_fedavg_vector.csv
 ```
 Takes the aggregator's central FedAvg vector and evaluates it from this site's
@@ -49,16 +49,31 @@ The method (`ridge`/`lasso`) is read from the vector; Random Forest is deferred
 
 ## Input data
 
-A CSV with one column per feature plus the target column (`log_auc` by default).
-One row per subject. The site prepares this locally; the workflow never sees any
-other site's data.
+The workflow reads the **same ImmPort-derived `data/` tree** the
+oadr-autoantibody notebooks use, through the embedded `oadr_data` loader — you
+do not pre-build a CSV. Point `--data_root` at that tree:
+
+```
+data/
+  <study>_tidy.csv                 Panel A features (per study)
+  <study>_cpeptide_auc_tidy.csv    the C-peptide AUC target
+  Jeff/aa_<id>.csv, demo_<id>.csv  Panel B extended features (524/569/1737)
+  arms/<study>_arm_or_cohort.txt   treatment (subject → arm → treatment)
+  arms/<study>_arm_2_subject.txt
+```
+
+`--panel A` builds the 9 legacy features; `--panel B` builds the 12 extended
+features. All cleanup (column normalization, height repair, median fill,
+treatment-by-arm-closure) happens in `oadr_data`, within-study. The data stays
+at the site — only parameters and scalar summaries leave.
 
 ## The container
 
 A self-contained image, `container/oadr-cpep/`, provides the per-site
 `oadr-cpep-cli` (subcommands `select-features`, `fit-models`,
-`apply-coefficients`). Build once and publish; the site workflow references it.
-The aggregator step has its own image in **oadr-cpep-fed-predict-aggregator-nf**.
+`apply-coefficients`) plus the embedded `oadr_data` loader. Build once and
+publish; the site workflow references it. The aggregator step has its own image
+in **oadr-cpep-fed-predict-aggregator-nf**.
 
 ```bash
 docker build -t ghcr.io/nih-nlm/oadr-cpep:0.1.0 container/oadr-cpep/
@@ -67,7 +82,7 @@ docker build -t ghcr.io/nih-nlm/oadr-cpep:0.1.0 container/oadr-cpep/
 ## Layout
 
 ```
-container/oadr-cpep/          site CLI image (Dockerfile + context/src/oadr_cpep_cli)
+container/oadr-cpep/          site CLI image (Dockerfile + context/src/oadr_cpep_cli, incl. oadr_data.py)
 modules/oadr_cpep/            Nextflow processes calling the CLI
 main.nf                       phase gate (select / fit / apply)
 nextflow.config              params + container binding
@@ -77,13 +92,13 @@ nextflow.config              params + container binding
 
 | Param | Default | Meaning |
 |---|---|---|
-| `--data` | — | this site's data CSV (required) |
-| `--site` | — | institution id, e.g. SDY524 (required) |
+| `--site` | — | study id, e.g. SDY524 (required) |
+| `--data_root` | — | the oadr-autoantibody `data/` tree (required) |
+| `--panel` | `B` | feature panel: `A` (legacy 9) or `B` (extended 12) |
 | `--consensus_features` | null | pass to run Phase 2 (fit on consensus features) |
 | `--federated_coefficients` | null | pass to run Phase 3 (incorporate federated coefficients) |
 | `--federated_method` | null | Phase 3 method `ridge`/`lasso` (default: read from the vector) |
 | `--n_boot` | 2000 | Phase 3 bootstrap resamples for the R² 95% CI |
-| `--target` | `log_auc` | outcome column |
 | `--ridge_alpha` / `--lasso_alpha` | 1.0 / 0.008 | penalties for Phases 2 & 3 |
 | `--n_trees` | 200 | random forest size (Phase 2) |
 | `--seed` | 42 | reproducibility |
