@@ -11,6 +11,7 @@
 process FIT_LASSO {
     tag "fit_lasso_${site}"
     label 'oadr_cpep'
+    containerOptions '--entrypoint ""'
     publishDir "${params.outdir}/vectors", mode: params.publish_mode
 
     input:

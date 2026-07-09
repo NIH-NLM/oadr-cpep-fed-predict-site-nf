@@ -12,6 +12,7 @@
 process FIT_RIDGE {
     tag "fit_ridge_${site}"
     label 'oadr_cpep'
+    containerOptions '--entrypoint ""'
     publishDir "${params.outdir}/vectors", mode: params.publish_mode
 
     input:
