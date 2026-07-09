@@ -1,16 +1,15 @@
 /**
- * Phase 3 (site) — incorporate the central federated coefficients.
+ * Phase 3 (site) — this site's own outcome using the federated results.
  *
- * Runs oadr-cpep-cli apply-coefficients over this site's own data (loaded via
- * oadr_data, --site = study, --panel A|B): reproduces the Stage-2 evaluation —
- * 5-fold CV comparing the site's SOLO model against the FEDERATED model,
- * bootstrap 95% CIs on R², and an observed-vs-predicted scatter. The federated
- * arm applies the aggregator's central FedAvg vector as-is (it already includes
- * this site, so it is not re-blended). Subject-level predictions stay local; the
- * scalar performance summary is what is meant to leave the site.
+ * Runs `oadr-cpep apply-coefficients` over this site's own data. The aggregator's
+ * federated_* results (ridge/lasso vectors + rf union) are staged FLAT into the
+ * work dir and discovered via --coefficients-dir . ; --from scopes to one feature
+ * source. For each method it compares the site's SOLO model (5-fold CV) against
+ * the FEDERATED model, with bootstrap 95% CIs and a combined graphic. Subject-
+ * level predictions stay local; the scalar performance summary is what leaves.
  *
- * Input : val site (study id), path data_root, path federated_coefficients.csv
- * Output: path *_federated_performance.csv, *_federated_predictions.csv, *_federated.{png,pdf}
+ * Input : val site, path data_files (flat), path federated (federated_* results, staged)
+ * Output: path *_federated_metrics.csv, *_federated_predictions.csv, *_federated.{png,svg,html}
  */
 process APPLY_COEFFICIENTS {
     tag "apply_coefficients_${site}"
@@ -19,23 +18,22 @@ process APPLY_COEFFICIENTS {
 
     input:
     val site
-    path data_root
-    path coefficients
+    path data_files
+    path federated
 
     output:
-    path "*_federated_performance.csv", emit: performance
+    path "*_federated_metrics.csv",     emit: metrics
     path "*_federated_predictions.csv", emit: predictions
-    path "*_federated.{png,pdf}",       emit: figures
+    path "*_federated.{png,svg,html}",  emit: figures
 
     script:
-    def method = params.federated_method ? "--method ${params.federated_method}" : ""
+    def from = params.from ? "--from ${params.from}" : ""
     """
-    oadr-cpep-cli apply-coefficients \
+    oadr-cpep apply-coefficients \
         --site ${site} \
         --panel ${params.panel} \
-        --data-root ${data_root} \
-        --coefficients ${coefficients} \
-        ${method} \
+        --coefficients-dir . \
+        ${from} \
         --ridge-alpha ${params.ridge_alpha} \
         --lasso-alpha ${params.lasso_alpha} \
         --n-boot ${params.n_boot} \

@@ -1,13 +1,13 @@
 /**
  * Phase 1 (site) — LASSO feature selection.
  *
- * Runs oadr-cpep-cli select-features on this institution's own data, loaded via
- * the embedded oadr_data loader (--site = study, --panel A|B) from the staged
- * data/ tree. Emits the selected features + coefficients; no subject-level data
- * leaves the site.
+ * Runs `oadr-cpep select-features` on this institution's own data (loaded via the
+ * embedded oadr_data loader; --site = study, --panel A|B). Data files are staged
+ * FLAT into the work dir. Emits the selected-features list (feeds the aggregator)
+ * and the full LASSO result; no subject-level data leaves the site.
  *
- * Input : val site (study id), path data_root (the data/ tree)
- * Output: path <site>_selected_features.csv
+ * Input : val site (study id), path data_files (flat, staged)
+ * Output: path <site>_panel<X>_selected_features.csv, <site>_panel<X>_lasso_selection.csv
  */
 process SELECT_FEATURES {
     tag "select_features_${site}"
@@ -16,17 +16,17 @@ process SELECT_FEATURES {
 
     input:
     val site
-    path data_root
+    path data_files
 
     output:
     path "*_selected_features.csv", emit: selected
+    path "*_lasso_selection.csv",   emit: full
 
     script:
     """
-    oadr-cpep-cli select-features \
+    oadr-cpep select-features \
         --site ${site} \
         --panel ${params.panel} \
-        --data-root ${data_root} \
         --seed ${params.seed}
     """
 }

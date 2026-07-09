@@ -14,7 +14,7 @@ The artifact you pass selects the phase:
 
 **Phase 1 — feature selection** (no artifact):
 ```bash
-nextflow run main.nf --site SDY524 --panel B --data_root /path/to/data
+nextflow run main.nf --site SDY524 --panel B --data_files 's3://bucket/data/*'
 ```
 Runs LASSO on the site's data and emits `SDY524_selected_features.csv`. The
 aggregator collects every site's selection and broadcasts back a
@@ -22,7 +22,7 @@ aggregator collects every site's selection and broadcasts back a
 
 **Phase 2 — fit on consensus features** (`--consensus_features`):
 ```bash
-nextflow run main.nf --site SDY524 --panel B --data_root /path/to/data \
+nextflow run main.nf --site SDY524 --panel B --data_files 's3://bucket/data/*' \
     --consensus_features consensus_features.csv
 ```
 Fits Ridge, LASSO, and Random Forest on the consensus features — LASSO
@@ -31,7 +31,7 @@ selection is not repeated — and emits `SDY524_ridge_vector.csv`,
 
 **Phase 3 — incorporate the federated coefficients** (`--federated_coefficients`):
 ```bash
-nextflow run main.nf --site SDY524 --panel B --data_root /path/to/data \
+nextflow run main.nf --site SDY524 --panel B --data_files 's3://bucket/data/*' \
     --federated_coefficients federated_ridge_fedavg_vector.csv
 ```
 Takes the aggregator's central FedAvg vector and evaluates it from this site's
@@ -49,43 +49,43 @@ The method (`ridge`/`lasso`) is read from the vector; Random Forest is deferred
 
 ## Input data
 
-The workflow reads the **same ImmPort-derived `data/` tree** the
-oadr-autoantibody notebooks use, through the embedded `oadr_data` loader — you
-do not pre-build a CSV. Point `--data_root` at that tree:
+The workflow reads the **same ImmPort-derived files** the oadr-autoantibody
+notebooks use (via the embedded `oadr_data` loader) — you do not pre-build a
+CSV. `--data_files` is a **glob**; every match is staged **flat** into each
+process work dir, so nothing depends on a directory layout on ephemeral AWS spot
+nodes. Upload the files flat and point the glob at them:
 
 ```
-data/
-  <study>_tidy.csv                 Panel A features (per study)
-  <study>_cpeptide_auc_tidy.csv    the C-peptide AUC target
-  Jeff/aa_<id>.csv, demo_<id>.csv  Panel B extended features (524/569/1737)
-  arms/<study>_arm_or_cohort.txt   treatment (subject → arm → treatment)
-  arms/<study>_arm_2_subject.txt
+SDY<study>_tidy.csv                  Panel A features (per study)
+SDY<study>_cpeptide_auc_tidy.csv     the C-peptide AUC target (both panels)
+aa_<id>.csv, demo_<id>.csv           Panel B extended features (ids 524/569/1737)
+SDY<study>_arm_or_cohort.txt         treatment (subject → arm → treatment)
+SDY<study>_arm_2_subject.txt
 ```
 
-`--panel A` builds the 9 legacy features; `--panel B` builds the 12 extended
-features. All cleanup (column normalization, height repair, median fill,
-treatment-by-arm-closure) happens in `oadr_data`, within-study. The data stays
-at the site — only parameters and scalar summaries leave.
+The loader finds each file **by name** in the work dir (it also falls back to
+`Jeff/` and `arms/` subdirs if you run against the original nested repo tree
+locally). `--panel A` builds the 9 legacy features; `--panel B` builds the 12
+extended features. All cleanup (column normalization, height repair, median
+fill, treatment-by-arm-closure) happens in `oadr_data`, within-study. The data
+stays at the site — only parameters and scalar summaries leave.
 
 ## The container
 
-A self-contained image, `container/oadr-cpep/`, provides the per-site
-`oadr-cpep-cli` (subcommands `select-features`, `fit-models`,
-`apply-coefficients`) plus the embedded `oadr_data` loader. Build once and
-publish; the site workflow references it. The aggregator step has its own image
-in **oadr-cpep-fed-predict-aggregator-nf**.
-
-```bash
-docker build -t ghcr.io/nih-nlm/oadr-cpep:0.1.0 container/oadr-cpep/
-```
+Every process runs the shared **`ghcr.io/nih-nlm/oadr-cpep`** image, which
+provides the `oadr-cpep` CLI (`select-features`, `fit-ridge`/`fit-lasso`/`fit-rf`,
+`apply-coefficients`) and the embedded `oadr_data` loader. The image is built and
+published by the [oadr-cpep](https://github.com/NIH-NLM/oadr-cpep) package repo —
+this workflow only references it (`params.container` in `nextflow.config`). The
+same image serves the aggregator workflow.
 
 ## Layout
 
 ```
-container/oadr-cpep/          site CLI image (Dockerfile + context/src/oadr_cpep_cli, incl. oadr_data.py)
-modules/oadr_cpep/            Nextflow processes calling the CLI
-main.nf                       phase gate (select / fit / apply)
-nextflow.config              params + container binding
+modules/oadr_cpep/   one process per step calling the oadr-cpep CLI:
+                       select_features, fit_ridge, fit_lasso, fit_rf, apply_coefficients
+main.nf              phase gate (select / fit-ridge+lasso+rf / apply)
+nextflow.config      params + shared-container binding
 ```
 
 ## Parameters
@@ -93,7 +93,7 @@ nextflow.config              params + container binding
 | Param | Default | Meaning |
 |---|---|---|
 | `--site` | — | study id, e.g. SDY524 (required) |
-| `--data_root` | — | the oadr-autoantibody `data/` tree (required) |
+| `--data_files` | — | glob of the flat data files, e.g. `s3://bucket/data/*` (required) |
 | `--panel` | `B` | feature panel: `A` (legacy 9) or `B` (extended 12) |
 | `--consensus_features` | null | pass to run Phase 2 (fit on consensus features) |
 | `--federated_coefficients` | null | pass to run Phase 3 (incorporate federated coefficients) |
