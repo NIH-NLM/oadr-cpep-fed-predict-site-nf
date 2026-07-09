@@ -1,12 +1,10 @@
 # oadr-cpep-fed-predict-site-nf
 
-The **per-site (institution) workflow** for federated prediction of residual
-beta-cell function (C-peptide AUC) in Type 1 Diabetes. Each institution runs
-this on its own data; only model parameters and scalar performance summaries
-ever leave the site.
+The **cpep prediction workflow** for prediction of residual
+beta-cell function (C-peptide AUC) in Type 1 Diabetes. 
 
 Pairs with the coordinator workflow **oadr-cpep-fed-predict-aggregator-nf**,
-which builds the consensus feature set and aggregates the fitted parameters.
+which builds the consensus feature set and/or aggregates the fitted parameters.
 
 ## Three phases (one reusable workflow)
 
