@@ -9,7 +9,7 @@
  * Input : val site, path features, val data_args, path data_files (staged)
  * Output: forest -> *_rf.pkl ; metrics ; figures
  */
-process FIT_RF {
+process fit_rf_process {
     tag "fit_rf_${site}"
     label 'oadr_cpep'
     containerOptions '--entrypoint ""'

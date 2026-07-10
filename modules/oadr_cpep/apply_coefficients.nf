@@ -11,7 +11,7 @@
  * Input : val site, val data_args, path data_files, val fed_args, path fed_files (staged)
  * Output: metrics -> *_federated_metrics.csv ; predictions ; figures
  */
-process APPLY_COEFFICIENTS {
+process apply_coefficients_process {
     tag "apply_coefficients_${site}"
     label 'oadr_cpep'
     containerOptions '--entrypoint ""'
