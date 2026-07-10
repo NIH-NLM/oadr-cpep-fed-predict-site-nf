@@ -1,13 +1,13 @@
 /**
  * Phase 2 (site) — fit Ridge on the given feature set.
  *
- * Runs `oadr-cpep fit-ridge` over this site's own data (--site = study, --panel
- * A|B) on the feature list handed in (consensus, a site's selection, or any
- * list). Emits the coefficient vector (to the aggregator), the 5-fold CV metrics,
- * and a fit graphic. Outputs are stamped `from-<src>` with the feature source.
+ * Runs `oadr-cpep fit-ridge` over this site's own data on the feature list handed
+ * in (chained from SELECT_FEATURES, or an external consensus list). Data files are
+ * passed EXPLICITLY (`data_args`) and staged flat. Emits the coefficient vector (to
+ * the aggregator), the 5-fold CV metrics, and a fit graphic, stamped `from-<src>`.
  *
- * Input : val site, path data_files (flat, staged), path features
- * Output: path *_ridge_vector.csv, *_ridge_fit_metrics.csv, *_ridge_fit.{png,svg,html}
+ * Input : val site, path features, val data_args, path data_files (staged)
+ * Output: vector -> *_ridge_vector.csv ; metrics ; figures
  */
 process FIT_RIDGE {
     tag "fit_ridge_${site}"
@@ -17,8 +17,9 @@ process FIT_RIDGE {
 
     input:
     val site
-    path data_files
     path features
+    val data_args
+    path data_files
 
     output:
     path "*_ridge_vector.csv",         emit: vector
@@ -31,9 +32,9 @@ process FIT_RIDGE {
         --site ${site} \
         --panel ${params.panel} \
         --features ${features} \
+        ${data_args} \
         --alpha ${params.ridge_alpha} \
         --n-boot ${params.n_boot} \
-        --seed ${params.seed} \
-        --outdir .
+        --seed ${params.seed}
     """
 }
