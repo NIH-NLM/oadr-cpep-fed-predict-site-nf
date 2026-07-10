@@ -9,7 +9,7 @@
  * Input : val site, path features, val data_args, path data_files (staged)
  * Output: vector -> *_lasso_vector.csv ; metrics ; figures
  */
-process FIT_LASSO {
+process fit_lasso_process {
     tag "fit_lasso_${site}"
     label 'oadr_cpep'
     containerOptions '--entrypoint ""'

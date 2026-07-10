@@ -3,7 +3,7 @@
 ========================================================================================
   oadr-cpep-fed-predict-site-nf  —  the per-site (institution) workflow
 ========================================================================================
-  A single DAG: SELECT_FEATURES ──▶ FIT_RIDGE / FIT_LASSO / FIT_RF, with the selected
+  A single DAG: select_features_process ──▶ fit_ridge_process / fit_lasso_process / fit_rf_process, with the selected
   features fed to the fits through a channel (the sc-nsforest chaining model). Every
   step takes its inputs as EXPLICIT files — the study's data files for the panel
   (Panel A: --tidy --cpeptide ; Panel B: --aa --demo --cpeptide [--arms --arm-subjects]) —
@@ -21,11 +21,11 @@
 
 nextflow.enable.dsl = 2
 
-include { SELECT_FEATURES }    from './modules/oadr_cpep/select_features.nf'
-include { FIT_RIDGE }          from './modules/oadr_cpep/fit_ridge.nf'
-include { FIT_LASSO }          from './modules/oadr_cpep/fit_lasso.nf'
-include { FIT_RF }             from './modules/oadr_cpep/fit_rf.nf'
-include { APPLY_COEFFICIENTS } from './modules/oadr_cpep/apply_coefficients.nf'
+include { select_features_process }    from './modules/oadr_cpep/select_features.nf'
+include { fit_ridge_process }          from './modules/oadr_cpep/fit_ridge.nf'
+include { fit_lasso_process }          from './modules/oadr_cpep/fit_lasso.nf'
+include { fit_rf_process }             from './modules/oadr_cpep/fit_rf.nf'
+include { apply_coefficients_process } from './modules/oadr_cpep/apply_coefficients.nf'
 
 workflow {
     if (!params.site)     error "Please provide --site (the study id, e.g. SDY524)"
@@ -59,17 +59,17 @@ workflow {
         fed_files = channel.fromPath([params.federated_ridge, params.federated_lasso,
                                       params.federated_rf].findAll { f -> f },
                                      checkIfExists: true).collect()
-        APPLY_COEFFICIENTS(params.site, data_args, data_files, fed_args, fed_files)
+        apply_coefficients_process(params.site, data_args, data_files, fed_args, fed_files)
     } else {
         // Single DAG — fit on an external feature list, or chain from this site's select
         if (params.features) {
             feats = channel.value(file(params.features, checkIfExists: true))
         } else {
-            SELECT_FEATURES(params.site, data_args, data_files)
-            feats = SELECT_FEATURES.out.selected
+            select_features_process(params.site, data_args, data_files)
+            feats = select_features_process.out.selected
         }
-        FIT_RIDGE(params.site, feats, data_args, data_files)
-        FIT_LASSO(params.site, feats, data_args, data_files)
-        FIT_RF(params.site, feats, data_args, data_files)
+        fit_ridge_process(params.site, feats, data_args, data_files)
+        fit_lasso_process(params.site, feats, data_args, data_files)
+        fit_rf_process(params.site, feats, data_args, data_files)
     }
 }

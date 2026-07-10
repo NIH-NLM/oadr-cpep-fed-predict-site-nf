@@ -10,7 +10,7 @@
  * Input : val site, val data_args (the --<file> flags), path data_files (staged)
  * Output: selected -> *_selected_features.csv ; full -> *_lasso_selection.csv
  */
-process SELECT_FEATURES {
+process select_features_process {
     tag "select_features_${site}"
     label 'oadr_cpep'
     containerOptions '--entrypoint ""'
