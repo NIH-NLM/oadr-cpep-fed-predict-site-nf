@@ -1,0 +1,18 @@
+# Local test environment for running this workflow on a Mac WITHOUT Docker.
+#
+#   conda env create -f environment.yml
+#   conda activate oadr-cpep-nf
+#   pip install -e ../oadr-cpep        # the sibling oadr-cpep package (editable)
+#   nextflow run main.nf -profile local  --site SDY524 --panel B  --aa ... --demo ... ...
+#
+# `-profile local` disables Docker and runs the `oadr-cpep` CLI straight from this
+# env. (The default containerized run — Lifebit / the published image — needs none
+# of this; it pulls ghcr.io/nih-nlm/oadr-cpep.)
+name: oadr-cpep-nf
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.12
+  - nextflow
+  - pip
