@@ -122,9 +122,100 @@ nextflow run main.nf -profile local \
 --features     results/SDY524_panelB_selected_features.csv
 ```
 
-## Step 4 - Aggregating Coefficients
+### Step 4 - Aggregating Coefficients
 
-Now we have vectors for each of the models (pkl files for the Random Forest example, where we create a union of Random Forest)
+Now we have vectors for each of the models (pkl files for the Random Forest example, where we create a union of Random Forest).
+
+Now we are going to step over to the [oadr-cpep-fed-aggregation-nf](https://github.com/NIH-NLM/oadr-cpep-fed-predict-aggregation-nf) directory and aggregate our coefficients (and union the forests for the random forest algorithm)
+
+To do this, we created a `vectors.csv` that contains the relative path information to our results from `**Steps 1-4**`.
+
+Let's navigate to the aggregation directory:
+
+```bash
+cd ../oadr-cpep-fed-predict-aggregation-nf
+```
+
+As I said, this step requires a `vectors.csv` file, which looks like this:
+```bash
+file
+../oadr-cpep-fed-predict-site-nf/results/SDY524_from-SDY524_panelB_lasso_vector.csv
+../oadr-cpep-fed-predict-site-nf/results/SDY524_from-SDY524_panelB_ridge_vector.csv
+../oadr-cpep-fed-predict-site-nf/results/SDY524_from-SDY524_panelB_rf.pkl
+../oadr-cpep-fed-predict-site-nf/results/SDY569_from-SDY524_panelB_lasso_vector.csv
+../oadr-cpep-fed-predict-site-nf/results/SDY569_from-SDY524_panelB_ridge_vector.csv
+../oadr-cpep-fed-predict-site-nf/results/SDY569_from-SDY524_panelB_rf.pkl
+```
+
+Note the first line is **file** this is required.
+
+And now we execute the aggregation (the routine, remember is in the oadr-cpep python package itself, accessible in the Nextflow workflow through modules and access to the CLI.
+
+```bash
+nextflow run aggregate.nf -profile local \
+--aggregation fedavg \
+--sheet vectors.csv
+```
+
+This deposits the following files in the local **results** directory relative to our `oadr-cpep-fed-predict-aggregation-nf` directory.
+A quick `ls -l` shows us the following content:
+
+```bash
+ls -l results 
+federated_from-SDY524_panelB_lasso_fedavg_vector.csv
+federated_from-SDY524_panelB_rf_union.pkl
+federated_from-SDY524_panelB_ridge_fedavg_vector.csv
+```
+
+### Step 5 - Apply federated results
+
+Ok last step -- now we want to apply these federated results -- to do this we go back to our site directory.
+
+```bash
+cd ../oadr-cpep-fed-predict-site-nf
+```
+First to **SDY524**
+```bash
+nextflow run main.nf -profile local \
+--site SDY524 \
+--panel B \
+--aa            ../oadr-cpep/data/aa_524.csv \
+--demo          ../oadr-cpep/data/demo_524.csv \
+--cpeptide      ../oadr-cpep/data/SDY524_cpeptide_auc_tidy.csv \
+--arms          ../oadr-cpep/data/SDY524_arm_or_cohort.txt \
+--arm_subjects  ../oadr-cpep/data/SDY524_arm_2_subject.txt \
+--federated_ridge ../oadr-cpep-fed-predict-aggregator-nf/results/federated_from-SDY524_panelB_ridge_fedavg_vector.csv \
+--federated_lasso ../oadr-cpep-fed-predict-aggregator-nf/results/federated_from-SDY524_panelB_lasso_fedavg_vector.csv \
+--federated_rf    ../oadr-cpep-fed-predict-aggregator-nf/results/federated_from-SDY524_panelB_rf_union.pkl
+```
+and then to **SDY569***
+
+```bash
+nextflow run main.nf -profile local \
+--site SDY569 \
+--panel B \
+--aa            ../oadr-cpep/data/aa_569.csv \
+--demo          ../oadr-cpep/data/demo_569.csv \
+--cpeptide      ../oadr-cpep/data/SDY569_cpeptide_auc_tidy.csv \
+--arms          ../oadr-cpep/data/SDY569_arm_or_cohort.txt \
+--arm_subjects  ../oadr-cpep/data/SDY569_arm_2_subject.txt \
+--federated_ridge ../oadr-cpep-fed-predict-aggregator-nf/results/federated_from-SDY524_panelB_ridge_fedavg_vector.csv \
+--federated_lasso ../oadr-cpep-fed-predict-aggregator-nf/results/federated_from-SDY524_panelB_lasso_fedavg_vector.csv \
+--federated_rf    ../oadr-cpep-fed-predict-aggregator-nf/results/federated_from-SDY524_panelB_rf_union.pkl
+```
+
+### Fine - Results
+
+Each result gives a **png**, **svg** and interactive **html** which you can view here:
+<!-- two side by side -->
+<table>
+  <tr>
+    <td><img src="docs/img/SDY524_panelB_federated.png" width="380"></td>
+    <td><img src="docs/img/SDY569_panelB_federated.png" width="380"></td>
+  </tr>
+  <tr><td align="center">SDY524 solo vs federated</td><td align="center">SDY569 solo vs federated</td></tr>
+</table>
+
 
 ## Parameters
 
