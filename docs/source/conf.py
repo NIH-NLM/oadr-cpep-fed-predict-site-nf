@@ -5,8 +5,12 @@ release   = '0.1.0'
 
 extensions = [
     'myst_parser',
+    'sphinxcontrib.mermaid',
     'sphinx.ext.viewcode',
 ]
+
+# render ```mermaid fenced blocks (e.g. the DAG in the README) as diagrams
+myst_fence_as_directive = ["mermaid"]
 
 # .rst (generated Nextflow module pages) + .md (the README, via myst_parser)
 source_suffix = {

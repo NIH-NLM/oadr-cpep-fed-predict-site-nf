@@ -15,7 +15,7 @@ process apply_coefficients_process {
     tag "apply_coefficients_${site}"
     label 'oadr_cpep'
     containerOptions '--entrypoint ""'
-    publishDir "${params.outdir}/federated_predictions", mode: params.publish_mode
+    publishDir "${params.outdir}", mode: params.publish_mode
 
     input:
     val site
