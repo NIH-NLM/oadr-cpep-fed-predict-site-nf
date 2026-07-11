@@ -241,3 +241,12 @@ nextflow.config      params + container + the `local` profile
 environment.yml      conda env for local (no-Docker) testing
 docs/                Sphinx (auto-generated from the .nf docblocks) → GitHub Pages
 ```
+
+# Citation
+
+Bhattacharya S, Dunn P, Thomas CG, Smith B, Schaefer H, Chen J, Hu Z, Zalocusky KA, Shankar RD, Shen-Orr SS, Thomson E, Wiser J, Butte AJ. ImmPort, toward repurposing of open access immunological assay data for translational and clinical research. Sci Data. 2018 Feb 27;5:180015. doi: 10.1038/sdata.2018.15. PMID: 29485622; PMCID: PMC5827693.
+
+Kong YM, Dahlke C, Xiang Q, Qian Y, Karp D, Scheuermann RH. Toward an ontology-based framework for clinical research databases. J Biomed Inform. 2011 Feb;44(1):48-58. doi: 10.1016/j.jbi.2010.05.001. Epub 2010 May 10. PMID: 20460173; PMCID: PMC2953614.
+
+The data supporting this publication is available at ImmPort (immport.org) under study accession SDY524, SDY569, SDY797, SDY1737.
+
