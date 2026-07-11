@@ -14,7 +14,7 @@ process select_features_process {
     tag "select_features_${site}"
     label 'oadr_cpep'
     containerOptions '--entrypoint ""'
-    publishDir "${params.outdir}/selected", mode: params.publish_mode
+    publishDir "${params.outdir}", mode: params.publish_mode
 
     input:
     val site

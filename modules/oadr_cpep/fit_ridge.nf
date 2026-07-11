@@ -13,7 +13,7 @@ process fit_ridge_process {
     tag "fit_ridge_${site}"
     label 'oadr_cpep'
     containerOptions '--entrypoint ""'
-    publishDir "${params.outdir}/vectors", mode: params.publish_mode
+    publishDir "${params.outdir}", mode: params.publish_mode
 
     input:
     val site
