@@ -207,11 +207,12 @@ nextflow run main.nf -profile local \
 ### Fine - Results
 
 Each result gives a **png**, **svg** and interactive **html** which you can view here:
+
 <!-- two side by side -->
 <table>
   <tr>
-    <td><img src="docs/img/SDY524_panelB_federated.png" width="380"></td>
-    <td><img src="docs/img/SDY569_panelB_federated.png" width="380"></td>
+    <td><img src="docs/source/_static/SDY524_panelB_federated.png" width="380"></td>
+    <td><img src="docs/source/_static/SDY569_panelB_federated.png" width="380"></td>
   </tr>
   <tr><td align="center">SDY524 solo vs federated</td><td align="center">SDY569 solo vs federated</td></tr>
 </table>
